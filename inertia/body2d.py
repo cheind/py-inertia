@@ -2,45 +2,40 @@
 import math
 import numpy as np
 
-from . import pose2d
-from .pose2d import Frame
+from . import transform as t
+from . import graph as g
 
 
-class Body2d:
+class Body2d(g.Node):
     """A rigid body"""
 
-    def __init__(self, mass=1, inertia=1, pose=pose2d.identity()):
+    def __init__(self, mass=1, inertia=1, pose=t.identity(2)):
+        super(Body2d, self).__init__(pose)
+
         self.invMass = 1.0 / mass
         """The body's inverse mass"""
         
         self.invInertia = 1.0 / inertia
         """The body's inverse inertia coefficient"""
-
-        self.pose = np.copy(pose)
-        """The body's current pose"""
-        
-        self.position = np.zeros(2)
+       
         self.velocity = np.zeros(2)
-        self.acceleration = np.zeros(2)
-        """The body's position, linear velocity and acceleration"""
+        """The body's linear velocity"""
 
-        self.orientation = 0.
+        self.acceleration = np.zeros(2)
+        """The body's linear acceleration"""
+
         self.angular_velocity = 0.
+        """The body's angular velocity"""
+
         self.angular_acceleration = 0.
-        """The body's orientation, angular velocity and acceleration"""
+        """The body's angular acceleration"""
 
         self._facc = np.zeros((1, 2))
         """The body's linear force accumulator"""
 
         self._tacc = np.zeros((1, 1))
         """The body's torque accumulator"""
-
-        self.pose = pose2d.identity()
-        """The body's current pose"""
-
-        r,t = pose2d.decompose(pose)
-        self.position = np.copy(t)
-        self.orientation = math.atan2(r[1,0], r[0, 1])
+       
                
     @property
     def movable(self):
@@ -67,31 +62,27 @@ class Body2d:
         self.velocity += self.acceleration * tdelta
         self.angular_velocity += self.angular_acceleration * tdelta
 
-        self.position += self.velocity * tdelta
-        self.orientation += self.angular_velocity * tdelta
+        p = self.velocity * tdelta
+        o = self.angular_velocity * tdelta
 
         # Update pose
-        self.pose = pose2d.chain(pose2d.t(offset=self.position), pose2d.r(angle=self.orientation))
+        self.pose = self.pose @ t.translate(offset=p) @ t.rotate(angle=o)
 
         # Clear accumulators
         self._facc.fill(0.)
         self._tacc.fill(0.)
 
-    def add_force(self, force, point=None, frame_force='world', frame_point='body'):
-        """Adds a new force to the bodies accumulator"""
+    def add_force(self, force, point=None):
+        """Adds a new force to the bodies accumulator.
+
+        Both the force vector and an optional point are assumed to be 
+        in  
+        """
 
         # Force affecting linear motion
-        if Frame(frame_force) == Frame.body:
-            force = pose2d.transform_vector(self.pose, force)
-
         self._facc += force
 
         # Force affecting angular motion
-        if point is None:
-            return
-        
-        if Frame(frame_point) == Frame.body:
-            point = pose2d.transform_point(self.pose, point)
-
-        self._tacc += np.cross(point - self.position, force)
+        if point is not None:
+            self._tacc += np.cross(point - self.position, force)
         
