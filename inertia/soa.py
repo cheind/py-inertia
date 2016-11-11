@@ -40,7 +40,7 @@ class Field(object):
             FieldType.scalar: lambda n, s: (n,),
             FieldType.array: lambda n, s: (n, s[0]),
             FieldType.row_vector: lambda n, s: (n, s[1]),
-            FieldType.col_vector: lambda n, s: (n,) + s, #Needs optimization
+            FieldType.col_vector: lambda n, s: (s[0], n),
             FieldType.matrix: lambda n, s: (n,) + s,
             FieldType.tensor: lambda n, s: (n,) + s
         }[stype]
@@ -82,33 +82,55 @@ class SOAViewBase(object):
         self.id = id
 
 
-def create(cls_name, fields):
 
-    view_props = {}
-    for f in fields:
-        def gen_property(name):
-            return property(
-                lambda self: getattr(self.soa, name)[self.id],
-                lambda self, value: getattr(self.soa, name).__setitem__(self.id, value)
-            )
-        view_props[f.name] =  gen_property(f.name)
+
+def create_view(cls_name, fields):
+
+    def col_vector_property(name, stype):
+        def getter(self):
+            return getattr(self.soa, name)[:, self.id]
+        
+        def setter(self, value):
+            getattr(self.soa, name)[:, self.id] = value
+
+        return property(getter, setter)
+
+    def default_property(name, stype):
+        def getter(self):
+            return getattr(self.soa, name)[self.id]
+        
+        def setter(self, value):
+            getattr(self.soa, name)[self.id] = value
+
+        return property(getter, setter)
+
+    prop_gens = {
+        FieldType.col_vector: col_vector_property
+    }
+
+    the_view = {}
     
-    def view_init(self, soa, id):
+    def init(self, soa, id):
         SOAViewBase.__init__(self, soa, id)
 
-    view_props['__init__'] = view_init
+    the_view['__init__'] = init
     
-    view_cls = type(cls_name + 'View', (SOAViewBase,), view_props)
+    for f in fields:
+        the_view[f.name] = prop_gens.get(f.stype, default_property)(f.name, f.stype)
+
+    view_cls = type(cls_name, (SOAViewBase,), the_view)
+    return view_cls
+
+
+def create(cls_name, fields):
 
     def soa_init(self, capacity=0):
         SOABase.__init__(self, fields, capacity)
 
     soa_cls = type(cls_name, (SOABase,), {"__init__": soa_init})
-    soa_cls.View = view_cls
+    soa_cls.View = create_view(cls_name + 'View', fields)
 
     return soa_cls
-
-
 
 MySOA = create('MySOA', fields=[
     Field('pos', dtype=np.float64, shape=(2,)),
