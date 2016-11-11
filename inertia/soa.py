@@ -10,14 +10,6 @@ class FieldType(Enum):
     matrix = 16
     tensor = 32
 
-class Field(object):
-    def __init__(self, name, shape=(1,), dtype=np.float64):
-        self.name = name
-        self.shape = shape
-        self.dtype = dtype
-        self.stype = self.classify(shape)
-        self.compute_shape = self.shape_fnc(self.stype)
-
     @staticmethod
     def classify(s):
         if len(s) == 1: 
@@ -34,13 +26,21 @@ class Field(object):
         else:
             raise Exception("Unknown shape")
 
+class Field(object):
+    def __init__(self, name, shape=(1,), dtype=np.float64):
+        self.name = name
+        self.shape = shape
+        self.dtype = dtype
+        self.stype = FieldType.classify(shape)
+        self.compute_shape = self.shape_fnc(self.stype)
+
     @staticmethod
     def shape_fnc(stype):
         return {
             FieldType.scalar: lambda n, s: (n,),
             FieldType.array: lambda n, s: (n, s[0]),
             FieldType.row_vector: lambda n, s: (n, s[1]),
-            FieldType.col_vector: lambda n, s: (n,) + s,
+            FieldType.col_vector: lambda n, s: (n,) + s, #Needs optimization
             FieldType.matrix: lambda n, s: (n,) + s,
             FieldType.tensor: lambda n, s: (n,) + s
         }[stype]
