@@ -1,22 +1,55 @@
+from enum import Enum
+
 import numpy as np
+
+class FieldType(Enum):
+    scalar = 1
+    array = 2
+    row_vector = 4
+    col_vector = 8
+    matrix = 16
+    tensor = 32
 
 class Field(object):
     def __init__(self, name, shape=(1,), dtype=np.float64):
         self.name = name
         self.shape = shape
         self.dtype = dtype
+        self.stype = self.classify(shape)
+        self.compute_shape = self.shape_fnc(self.stype)
 
-    def compute_shape(self, n):
-        if len(self.shape) == 1:
-            return (n,) if self.shape[0] == 1 else (n, self.shape[0])
+    @staticmethod
+    def classify(s):
+        if len(s) == 1: 
+            return FieldType.scalar if s[0] == 1 else FieldType.array
+        elif len(s) == 2:
+            if s[0] == 1 and s[1] > 1:
+                return FieldType.row_vector
+            elif s[0] > 1 and s[1] == 1:
+                return FieldType.col_vector
+            else:
+                return FieldType.matrix
+        elif len(s) > 2:
+            return FieldType.tensor
         else:
-            raise Exception("Matrix types are not supported")
+            raise Exception("Unknown shape")
+
+    @staticmethod
+    def shape_fnc(stype):
+        return {
+            FieldType.scalar: lambda n, s: (n,),
+            FieldType.array: lambda n, s: (n, s[0]),
+            FieldType.row_vector: lambda n, s: (n, s[1]),
+            FieldType.col_vector: lambda n, s: (n,) + s,
+            FieldType.matrix: lambda n, s: (n,) + s,
+            FieldType.tensor: lambda n, s: (n,) + s
+        }[stype]
 
     def create_numpy(self, n):
-        return np.zeros(self.compute_shape(n), self.dtype)
+        return np.zeros(self.compute_shape(n, self.shape), self.dtype)
 
     def resize_numpy(self, a, n):
-        a.resize(self.compute_shape(n), refcheck=False)
+        a.resize(self.compute_shape(n, self.shape), refcheck=False)
 
 
 class SOABase(object):
@@ -80,7 +113,10 @@ def create(cls_name, fields):
 MySOA = create('MySOA', fields=[
     Field('pos', dtype=np.float64, shape=(2,)),
     Field('vel', dtype=np.float64, shape=(2,)),
-    Field('active', dtype=bool, shape=(1,)),
+    Field('x', dtype=np.float64, shape=(1,3)),
+    Field('y', dtype=np.float64, shape=(3,1)),
+    Field('z', dtype=np.float64, shape=(3,3)),
+    Field('active', dtype=bool),
 ])
 
 class Body(MySOA.View):
