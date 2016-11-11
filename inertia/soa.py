@@ -27,10 +27,11 @@ class FieldType(Enum):
             raise Exception("Unknown shape")
 
 class Field(object):
-    def __init__(self, name, shape=(1,), dtype=np.float64):
+    def __init__(self, name, shape=(1,), dtype=np.float64, order='C'):
         self.name = name
         self.shape = shape
         self.dtype = dtype
+        self.order = order
         self.stype = FieldType.classify(shape)
         self.compute_shape = self.shape_fnc(self.stype)
 
@@ -46,7 +47,7 @@ class Field(object):
         }[stype]
 
     def create_numpy(self, n):
-        return np.zeros(self.compute_shape(n, self.shape), self.dtype)
+        return np.zeros(self.compute_shape(n, self.shape), dtype=self.dtype, order=self.order)
 
     def resize_numpy(self, a, n):
         a.resize(self.compute_shape(n, self.shape), refcheck=False)
@@ -80,9 +81,6 @@ class SOAViewBase(object):
     def __init__(self, soa, id):
         self.soa = soa
         self.id = id
-
-
-
 
 def create_view(cls_name, fields):
 
@@ -135,7 +133,7 @@ def create(cls_name, fields):
 MySOA = create('MySOA', fields=[
     Field('pos', dtype=np.float64, shape=(2,)),
     Field('vel', dtype=np.float64, shape=(2,)),
-    Field('x', dtype=np.float64, shape=(1,3)),
+    Field('x', dtype=np.float64, shape=(1,3), order='F'),
     Field('y', dtype=np.float64, shape=(3,1)),
     Field('z', dtype=np.float64, shape=(3,3)),
     Field('active', dtype=bool),
