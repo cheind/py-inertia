@@ -39,6 +39,9 @@ class SOABase(object):
         self.n += 1
         return id
 
+    def view(self, id):
+        return self.__class__.View(self, id)
+
 class SOAViewBase(object):
 
     def __init__(self, soa, id):
