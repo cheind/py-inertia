@@ -2,41 +2,15 @@
 import math
 import numpy as np
 
-from . import transform as t
-from . import graph as g
+from inertia import transform as t
+from .world2d import World2d
 
-
-class Body2d(g.Node):
+class Body2d(World2d.BodySOA.View):
     """A rigid body"""
 
-    def __init__(self, mass=1, inertia=1, pose=t.identity(2)):
-        super(Body2d, self).__init__(pose)
-
-        self.invMass = 1.0 / mass
-        """The body's inverse mass"""
-        
-        self.invInertia = 1.0 / inertia
-        """The body's inverse inertia coefficient"""
+    def __init__(self, world, id=None):
+        super(Body2d, self).__init__(world.body_soa, id)
        
-        self.velocity = np.zeros(2)
-        """The body's linear velocity"""
-
-        self.acceleration = np.zeros(2)
-        """The body's linear acceleration"""
-
-        self.angular_velocity = 0.
-        """The body's angular velocity"""
-
-        self.angular_acceleration = 0.
-        """The body's angular acceleration"""
-
-        self._facc = np.zeros((1, 2))
-        """The body's linear force accumulator"""
-
-        self._tacc = np.zeros((1, 1))
-        """The body's torque accumulator"""
-       
-               
     @property
     def movable(self):
         return self.invMass != 0
