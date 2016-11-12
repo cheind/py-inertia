@@ -20,6 +20,11 @@ def test_newton_one():
     b = Body2d(w, mass=1)
 
     aae(b.position, [0, 0])    
-    b.add_force([1, 0])    
+    b.add_force([1, 0]) # One time force
     w.run_for(0.5, 0.001)
     aae(b.position, pos([0,0], [0,0], [1,0], 0.5), decimal=3)
+
+    b.add_force([-2, 0]) # One time force
+    pred = pos(b.position, b.velocity, [-1, 0], 0.5)  
+    w.run_for(0.5, 0.001)
+    aae(b.position, pred, decimal=3)
