@@ -53,11 +53,11 @@ def default_view_property(self):
 
 class Field(object):
     """Describes one numerical entry of a SOA."""
-    def __init__(self, name, shape=(1,), dtype=np.float64, order='C', view_property=default_view_property):
+    def __init__(self, name, shape=(1,), dtype=np.float64, value=0, view_property=default_view_property):
         self.name = name
         self.shape = shape
         self.dtype = dtype
-        self.order = order
+        self.fill_value = value
         self.stype = FieldType.classify(shape)
         self.compute_shape = self.shape_fnc(self.stype)
         self.view_property = types.MethodType(view_property, self) # Bind method
@@ -75,12 +75,16 @@ class Field(object):
 
     def create_numpy(self, n):
         """Returns a numpy array for given field that holds at least `n` elements."""
-        return np.zeros(self.compute_shape(n, self.shape), dtype=self.dtype, order=self.order)
+        return np.full(self.compute_shape(n, self.shape), self.fill_value, dtype=self.dtype)
 
     def resize_numpy(self, a, n):
         """Resizes a numpy field array `a` to hold at least `n` elements."""
-        a.resize(self.compute_shape(n, self.shape), refcheck=False)
+        old_size = a.shape
+        new_size = self.compute_shape(n, self.shape)
+        diff = np.subtract(new_size, old_size)
 
+        # Need to create a tuple (pad-before, pad-after) for each axis
+        return np.pad(a, [(0,d) for d in diff], mode='constant', constant_values=self.fill_value)
 
 class SOABase(object):
     """Base class for structure of array (SOA) types."""
@@ -103,7 +107,8 @@ class SOABase(object):
         if self.n == self.capacity:
             new_capacity = (self.capacity + 1) * 2
             for f in self.fields:
-                f.resize_numpy(getattr(self, f.name), new_capacity)
+                new_f = f.resize_numpy(getattr(self, f.name), new_capacity)
+                setattr(self, f.name, new_f)
             self.capacity = new_capacity
 
         id = self.n
