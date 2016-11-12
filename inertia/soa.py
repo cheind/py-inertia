@@ -1,4 +1,5 @@
 from enum import Enum
+import types
 
 import numpy as np
 
@@ -29,19 +30,40 @@ class FieldType(Enum):
         else:
             raise Exception("Unknown shape")
 
+def default_view_property(self):
+    def col_vector():
+        def getter(view):
+            return getattr(view.soa, self.name)[:, view.id]
+        
+        def setter(view, value):
+            getattr(view.soa, self.name)[:, view.id] = value
+
+        return property(getter, setter)
+
+    def default():
+        def getter(view):
+            return getattr(view.soa, self.name)[view.id]
+        
+        def setter(view, value):
+            getattr(view.soa, self.name)[view.id] = value
+
+        return property(getter, setter)
+
+    return col_vector() if self.stype == FieldType.col_vector else default() 
+
 class Field(object):
     """Describes one numerical entry of a SOA."""
-    def __init__(self, name, shape=(1,), dtype=np.float64, order='C'):
+    def __init__(self, name, shape=(1,), dtype=np.float64, order='C', view_property=default_view_property):
         self.name = name
         self.shape = shape
         self.dtype = dtype
         self.order = order
         self.stype = FieldType.classify(shape)
         self.compute_shape = self.shape_fnc(self.stype)
-
-    @staticmethod
-    def shape_fnc(stype):
-        """Returns a function for computing a field's shape with a given capacity."""
+        self.view_property = types.MethodType(view_property, self) # Bind method
+        
+    def shape_fnc(self, stype):
+        """Returns a function for computing a field's shape for a given capacity."""
         return {
             FieldType.scalar: lambda n, s: (n,),
             FieldType.array: lambda n, s: (n, s[0]),
@@ -70,11 +92,16 @@ class SOABase(object):
         self.capacity = capacity
         for f in fields:
             setattr(self, f.name, f.create_numpy(capacity))
+
+
+    def __len__(self):
+        """Returns the number of taken items."""
+        return self.n
         
     def take(self):
         """Returns the id of the next free slot in this SOA."""
         if self.n == self.capacity:
-            new_capacity = self.capacity * 2
+            new_capacity = (self.capacity + 1) * 2
             for f in self.fields:
                 f.resize_numpy(getattr(self, f.name), new_capacity)
             self.capacity = new_capacity
@@ -96,8 +123,11 @@ class SOABase(object):
         avoided to avoid invalidated references once the underlying SOA
         resizes arrays.
         """
-
         return self.__class__.View(self, id)
+
+    def view_as(self, id, klass, *args, **kwargs):
+        """Returns a custom structured view for tje slot at `id`."""
+        return klass(self, id, *args, **kwargs)
 
 class SOAViewBase(object):
     """The base class for views on SOA objects.
@@ -115,28 +145,6 @@ class SOAViewBase(object):
 def create_view(cls_name, fields):
     """Returns a structured view class for the given SOA fields."""
 
-    def col_vector_property(name, stype):
-        def getter(self):
-            return getattr(self.soa, name)[:, self.id]
-        
-        def setter(self, value):
-            getattr(self.soa, name)[:, self.id] = value
-
-        return property(getter, setter)
-
-    def default_property(name, stype):
-        def getter(self):
-            return getattr(self.soa, name)[self.id]
-        
-        def setter(self, value):
-            getattr(self.soa, name)[self.id] = value
-
-        return property(getter, setter)
-
-    prop_gens = {
-        FieldType.col_vector: col_vector_property
-    }
-
     the_view = {}
     
     def init(self, soa, id):
@@ -145,7 +153,7 @@ def create_view(cls_name, fields):
     the_view['__init__'] = init
     
     for f in fields:
-        the_view[f.name] = prop_gens.get(f.stype, default_property)(f.name, f.stype)
+        the_view[f.name] = f.view_property()
 
     view_cls = type(cls_name, (SOAViewBase,), the_view)
     return view_cls
@@ -161,22 +169,3 @@ def create(cls_name, fields):
     soa_cls.View = create_view(cls_name + 'View', fields)
 
     return soa_cls
-
-MySOA = create('MySOA', fields=[
-    Field('pos', dtype=np.float64, shape=(2,)),
-    Field('vel', dtype=np.float64, shape=(2,)),
-    Field('x', dtype=np.float64, shape=(1,3), order='F'),
-    Field('y', dtype=np.float64, shape=(3,1)),
-    Field('z', dtype=np.float64, shape=(3,3)),
-    Field('active', dtype=bool),
-])
-
-class Body(MySOA.View):
-    def __init__(self, soa):
-        super(Body, self).__init__(soa, soa.take())
-
-    @property
-    def modified_pos(self):
-        return self.pos + 2
-
-
