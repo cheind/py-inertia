@@ -143,9 +143,13 @@ class SOAViewBase(object):
     put merely interacts with the underlying SOA.
     """
 
-    def __init__(self, soa, id):
+    def __init__(self, soa, id=None):
         self.soa = soa
-        self.id = id
+        if id is None:
+            self.id = soa.take()
+        else:
+            self.id = id
+
 
 def create_view(cls_name, fields):
     """Returns a structured view class for the given SOA fields."""

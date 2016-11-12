@@ -3,8 +3,6 @@ import numpy as np
 from inertia import soa
 from numpy.testing import assert_array_almost_equal as aae
 
-
-
 fields = [
     soa.Field('x', dtype=np.float64, shape=(1,3)),
     soa.Field('y', dtype=np.float64, shape=(3,)),
@@ -114,7 +112,7 @@ def test_views_reflect_changes():
 
 class DerivedView(SOA.View):
     def __init__(self, soa, id=None):
-        super(DerivedView, self).__init__(soa, soa.take() if id is None else id)
+        super(DerivedView, self).__init__(soa, id=id)
 
     @property
     def x_plus_two(self):
