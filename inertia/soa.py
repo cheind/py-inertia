@@ -145,10 +145,7 @@ class SOAViewBase(object):
 
     def __init__(self, soa, slice):
         self.soa = soa
-        if slice is None:
-            self.slice = soa.take()
-        else:
-            self.slice = slice
+        self.slice = slice
 
     @property
     def id(self):

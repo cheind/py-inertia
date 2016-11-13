@@ -3,6 +3,7 @@ import numpy as np
 
 from inertia.physics.world2d import World2d
 from inertia.physics.body2d import Body2d
+from inertia.physics.force2d import ConstantForce
 import inertia as i
 
 from numpy.testing import assert_array_almost_equal as aae
@@ -19,11 +20,24 @@ def test_newton_one():
     w = World2d(1)
     b = Body2d(w, mass=1)
 
+    w.forces.x = ConstantForce(w, b, [1, 0], tbegin=0.0, tend=1.0)
+
     # At rest
     aae(b.position, [0, 0])    
-    w.run_for(0.5, 0.001)
+    w.run_for(1, 0.0001)
+
+    print(b.position)
+    print(w.time)
+    print(pos([0,0], [0,0], [1,0], 1))
+
     aae(b.position, [0, 0])
 
+
+
+
+
+
+    """
     # One time net force
     b.add_force([1, 0]) # One time force
     w.run_for(0.5, 0.001)
@@ -34,3 +48,4 @@ def test_newton_one():
     pred = pos(b.position, b.velocity, [-1, 0], 0.5)  
     w.run_for(0.5, 0.001)
     aae(b.position, pred, decimal=3)
+    """

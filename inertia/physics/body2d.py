@@ -9,12 +9,16 @@ class Body2d(World2d.BodySOA.View):
     """A rigid body"""
 
     def __init__(self, world, id=None, mass=1, inertia=1):
+        if id is None:
+            id = world.body_soa.take()
+            new = True
+
         super(Body2d, self).__init__(world.body_soa, id)
 
-        if id is None:
-            # Initialize body
+        if new:
             self.inverse_mass = 1.0 / mass
             self.inverse_inertia = 1.0 / inertia
+
           
     @property
     def mass(self):
@@ -27,21 +31,6 @@ class Body2d(World2d.BodySOA.View):
     @property
     def pose(self):
         return t.translate(offset=self.position) @ t.rotate(angle=self.orientation)
-
-    def add_force(self, force, point=None):
-        """Adds a new world force to the bodies accumulator.
-        
-        A force applied by this method affects the next simulation timestep only.
-        Depending on the duration of the next update, this force might have a bigger
-        or smaller effect on the body.
-        """
-
-        # Force affecting linear motion
-        self.linear_force_accumulator += force
-
-        # Force affecting angular motion
-        if point is not None:
-            self.torque_accumulator += np.cross(point - self.position, force)
 
     
         
