@@ -2,15 +2,15 @@
 from inertia import soa
 import math
 
-class Bodies:
-    def __init__(self):
-        pass
+class Items:
+    """def __init__(self):
+        self._items=[]
 
     def __setattr__(self, name, value):
-        if isinstance(value, Body2d):
-            super(Bodies, self).__setattr__(name, value)
-        else:
-            raise Exception('Cannot add {}. Not a Body2d'.format(name))
+        self._items.append(value)
+        super(Entity, self).__setattr__(name, value)
+    """
+    pass
         
 class World2d(object):
 
@@ -28,17 +28,20 @@ class World2d(object):
     ])
 
     def __init__(self, body_capacity=10):
-        self.bodies = Bodies()
-        self.body_soa = World2d.BodySOA(body_capacity)
-
+        self.bodies = Items()
+        self.forces = Items()        
+        self.body_soa = World2d.BodySOA(body_capacity)        
+        self.time = 0.
+        """Current simulation time."""
+    
     def update(self, timestep):
-        """Updates all entities by timestep."""
+        """Updates simulation by advancing `timestep` seconds."""
                 
         # Update linear acceleration by a = F / m, where F is the net force.
-        self.body_soa.acceleration += self.body_soa.linear_force_accumulator * self.body_soa.inverse_mass
+        self.body_soa.acceleration = self.body_soa.linear_force_accumulator * self.body_soa.inverse_mass
 
         # Update angular acceleration by a = inv(I) * T, where T is the net torque.
-        self.body_soa.angular_acceleration += self.body_soa.torque_accumulator * self.body_soa.inverse_inertia 
+        self.body_soa.angular_acceleration = self.body_soa.torque_accumulator * self.body_soa.inverse_inertia 
 
         # Euler integration
         self.body_soa.velocity += self.body_soa.acceleration * timestep
@@ -51,6 +54,8 @@ class World2d(object):
         self.body_soa.linear_force_accumulator.fill(0.)
         self.body_soa.torque_accumulator.fill(0.)
 
+        self.time += timestep
+
     def run_for(self, duration, timestep):
         n = math.floor(duration / timestep)
         r = duration - n * timestep
@@ -58,4 +63,5 @@ class World2d(object):
         for _ in range(n):
             self.update(timestep)
         self.update(r)
-    
+
+

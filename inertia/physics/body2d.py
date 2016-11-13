@@ -29,7 +29,12 @@ class Body2d(World2d.BodySOA.View):
         return t.translate(offset=self.position) @ t.rotate(angle=self.orientation)
 
     def add_force(self, force, point=None):
-        """Adds a new world force to the bodies accumulator."""
+        """Adds a new world force to the bodies accumulator.
+        
+        A force applied by this method affects the next simulation timestep only.
+        Depending on the duration of the next update, this force might have a bigger
+        or smaller effect on the body.
+        """
 
         # Force affecting linear motion
         self.linear_force_accumulator += force

@@ -19,9 +19,15 @@ def test_newton_one():
     w = World2d(1)
     b = Body2d(w, mass=1)
 
+    # At rest
     aae(b.position, [0, 0])    
+    w.run_for(0.5, 0.001)
+    aae(b.position, [0, 0])
+
+    # One time net force
     b.add_force([1, 0]) # One time force
     w.run_for(0.5, 0.001)
+    print(b.position)
     aae(b.position, pos([0,0], [0,0], [1,0], 0.5), decimal=3)
 
     b.add_force([-2, 0]) # One time force
