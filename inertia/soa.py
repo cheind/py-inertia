@@ -33,19 +33,19 @@ class FieldType(Enum):
 def default_view_property(self):
     def col_vector():
         def getter(view):
-            return getattr(view.soa, self.name)[:, view.id]
+            return getattr(view.soa, self.name)[:, view.slice]
         
         def setter(view, value):
-            getattr(view.soa, self.name)[:, view.id] = value
+            getattr(view.soa, self.name)[:, view.slice] = value
 
         return property(getter, setter)
 
     def default():
         def getter(view):
-            return getattr(view.soa, self.name)[view.id]
+            return getattr(view.soa, self.name)[view.slice]
         
         def setter(view, value):
-            getattr(view.soa, self.name)[view.id] = value
+            getattr(view.soa, self.name)[view.slice] = value
 
         return property(getter, setter)
 
@@ -115,7 +115,7 @@ class SOABase(object):
         self.n += 1
         return id
 
-    def view(self, id):
+    def view(self, slice):
         """Returns a structured view for the slot at `id`.
         
         Each generated SOA class has a default view class associated with
@@ -128,7 +128,7 @@ class SOABase(object):
         avoided to avoid invalidated references once the underlying SOA
         resizes arrays.
         """
-        return self.__class__.View(self, id)
+        return self.__class__.View(self, slice)
 
     def view_as(self, id, klass, *args, **kwargs):
         """Returns a custom structured view for tje slot at `id`."""
@@ -143,21 +143,24 @@ class SOAViewBase(object):
     put merely interacts with the underlying SOA.
     """
 
-    def __init__(self, soa, id=None):
+    def __init__(self, soa, slice):
         self.soa = soa
-        if id is None:
-            self.id = soa.take()
+        if slice is None:
+            self.slice = soa.take()
         else:
-            self.id = id
+            self.slice = slice
 
+    @property
+    def id(self):
+        return self.slice
 
 def create_view(cls_name, fields):
     """Returns a structured view class for the given SOA fields."""
 
     the_view = {}
     
-    def init(self, soa, id):
-        SOAViewBase.__init__(self, soa, id)
+    def init(self, soa, slice):
+        SOAViewBase.__init__(self, soa, slice)
 
     the_view['__init__'] = init
     

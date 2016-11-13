@@ -109,10 +109,50 @@ def test_views_reflect_changes():
     v1.x = 3
     aae(v0.x, 3)
 
+def test_views_select_slices():
+    mysoa = SOA(4)
+
+    v = mysoa.view(np.s_[:2]) # First two
+    v.x = 2
+    v.z = 3
+    aae(v.x, 2)
+    aae(v.z, 3)
+    aae(mysoa.x[:2, :], v.x)
+    aae(mysoa.z[:, :2], v.z)
+
+    v = mysoa.view(np.s_[:]) # All
+    v.x = 0
+    v.z = 0
+    aae(mysoa.x, 0)
+    aae(mysoa.z, 0)
+
+    v = mysoa.view(np.s_[-1]) # Last
+    v.x = [1,2,3]
+    v.z = [1,2,3]
+    aae(mysoa.x[-1, :], [1,2,3])
+    aae(mysoa.z[:, -1], [1,2,3])
+
+    mysoa.x.fill(0)
+    mysoa.z.fill(0)
+
+    v = mysoa.view([0,-1]) # By indices
+    v.x = np.repeat([[1,2,3]], 2, axis=0)
+    v.z = np.repeat([[1],[2],[3]], 2, axis=1)
+    
+    aae(mysoa.x[0, :], [1,2,3])
+    aae(mysoa.x[-1, :], [1,2,3])
+    aae(mysoa.x[1:2, :], 0)
+    aae(mysoa.z[:, 0], [1,2,3])
+    aae(mysoa.z[:, -1], [1,2,3])
+    aae(mysoa.z[:, 1:2], 0)
+
+
+
+
 
 class DerivedView(SOA.View):
-    def __init__(self, soa, id=None):
-        super(DerivedView, self).__init__(soa, id=id)
+    def __init__(self, soa, slice=None):
+        super(DerivedView, self).__init__(soa, slice=slice)
 
     @property
     def x_plus_two(self):
