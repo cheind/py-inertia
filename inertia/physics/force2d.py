@@ -5,7 +5,6 @@ from enum import Enum
 
 from inertia import transform as t
 from inertia.physics.world2d import World2d
-from inertia.physics.body2d import Body2d
 
 
 class ForceMode(Enum):
@@ -18,27 +17,11 @@ class ForceMode(Enum):
 class Force2d(object):
     """Base class for forces."""
 
-    def __init__(self, world, bodies, tbegin=0., tend=float('inf')):
-        self.update_bodies(world, bodies)
+    def __init__(self, world, bodies=None, tbegin=0., tend=float('inf')):
+        self.bodies = bodies
         self.tbegin = tbegin
         self.tend = tend
         self.world = world
-
-    def update_bodies(self, w, bodies):
-        if bodies is None:
-            self.bodies = None
-        elif isinstance(bodies, collections.Iterable):
-            self.bodies = w.soa_bodies.view([b.id for b in bodies])
-        elif isinstance(bodies, int):
-            self.bodies = w.soa_bodies.view(bodies)
-        elif isinstance(bodies, tuple):
-            self.bodies = w.soa_bodies.view(bodies)
-        elif isinstance(bodies, Body2d):
-            self.bodies = bodies
-        elif isinstance(bodies, World2d.BodySOA):
-            self.bodies = bodies
-        else:
-            raise Exception("Unknown body selection")
 
     @property
     def active(self):
@@ -47,9 +30,9 @@ class Force2d(object):
     @staticmethod
     def apply_force(force, bodies, point=None, mode=ForceMode.force):
         if mode == ForceMode.force:
-            bodies.acceleration += bodies.inverse_mass * force
+            bodies.linear_acceleration += bodies.inverse_mass * force
         elif mode == ForceMode.acceleration:
-            bodies.acceleration += force
+            bodies.linear_acceleration += force
 
         if point is not None:
             t = np.cross(point - bodies.position, force)
@@ -64,8 +47,8 @@ class Force2d(object):
             bodies.angular_acceleration += torque
 
 class ConstantForce(Force2d):
-    def __init__(self, world, bodies, force, mode=ForceMode.force, point=None, tbegin=0., tend=float('inf')):
-        super(ConstantForce, self).__init__(world, bodies, tbegin=tbegin, tend=tend)
+    def __init__(self, force, world, bodies=None, mode=ForceMode.force, point=None, tbegin=0., tend=float('inf')):
+        super(ConstantForce, self).__init__(world, bodies=bodies, tbegin=tbegin, tend=tend)
         
         self.force = np.asarray(force)
         self.mode = mode

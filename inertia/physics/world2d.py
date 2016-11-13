@@ -1,6 +1,8 @@
-
-from inertia import soa
 import math
+import numpy as np
+
+from inertia.physics.body2d import Body2d, Body2dFields
+from inertia import transform as t
 
 class Items(object):
     def __init__(self):
@@ -15,31 +17,44 @@ class Items(object):
         
 class World2d(object):
 
-    BodySOA = soa.create('BodySOA', [
-        soa.Field('inverse_mass', shape=(1,), value=1),
-        soa.Field('inverse_inertia', shape=(1,), value=1),
-        soa.Field('position', shape=(2,)),
-        soa.Field('velocity', shape=(2,)),
-        soa.Field('acceleration', shape=(2,)),
-        soa.Field('orientation', shape=(1,)),
-        soa.Field('angular_velocity', shape=(1,)),
-        soa.Field('angular_acceleration', shape=(1,))
-    ])
-
     def __init__(self, body_capacity=10):
-        self.bodies = Items()
+        self.bodies = np.zeros(body_capacity, [e.value for e in Body2dFields])
+        self.initialize_bodies(np.s_[:body_capacity])
         self.forces = Items()        
-        self.body_soa = World2d.BodySOA(body_capacity)    
+
+        self.body_count = 0
+        """The number of bodies."""
+
+        self.body_capacity = body_capacity
+        """Body capacity without resizing."""
 
         self.time = 0.
         """Current simulation time."""
+
+    def new_body(self, **kwargs):
+        if self.body_count == self.body_capacity:
+            new_capacity = (self.body_capacity + 1) * 2
+            self.bodies.resize(new_capacity, refcheck=False)
+            self.initialize_bodies(np.s_[-(new_capacity - self.body_capacity)])
+            self.body_capacity = new_capacity
+
+        b = Body2d(self, id=self.body_count, **kwargs)
+        self.body_count += 1
+        return b
+
+    def initialize_bodies(self, slice):
+        b = Body2d(self, slice)
+        b.inverse_mass = 1.
+        b.inverse_inertia = 1.
     
     def update(self, timestep):
         """Updates simulation by advancing `timestep` seconds in one sweep."""
 
+        b = self.bodies[:self.body_count].view(np.recarray)
+
         # Clear accumulators
-        self.body_soa.acceleration.fill(0.)
-        self.body_soa.angular_acceleration.fill(0.)
+        b.linear_acceleration.fill(0.)
+        b.angular_acceleration.fill(0.)
 
         # Apply forces
         for f in self.forces:
@@ -47,11 +62,11 @@ class World2d(object):
                 f.apply(self, timestep)
 
         # Euler integration
-        self.body_soa.velocity += self.body_soa.acceleration * timestep
-        self.body_soa.angular_velocity += self.body_soa.angular_acceleration * timestep
+        b.linear_velocity += b.linear_acceleration * timestep
+        b.angular_velocity += b.angular_acceleration * timestep
 
-        self.body_soa.position += self.body_soa.velocity * timestep
-        self.body_soa.orientation += self.body_soa.angular_velocity * timestep
+        b.position = b.linear_velocity * timestep
+        b.orientation = b.angular_velocity * timestep
 
         self.time += timestep
 
@@ -62,5 +77,7 @@ class World2d(object):
         for _ in range(n):
             self.update(timestep)
         self.update(r)
+
+        
 
     
