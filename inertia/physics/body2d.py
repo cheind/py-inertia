@@ -16,20 +16,28 @@ class Body2dFields(Enum):
     inverse_mass = ('inverse_mass', float, 1)
     inverse_inertia = ('inverse_inertia', float, 1)
 
-Body2dView = view.create_view('Body2dView', Body2dFields)
+LazyBody2dView = view.create_view('LazyBody2dView', Body2dFields, lazy=True)
+Body2dView = view.create_view('Body2dView', Body2dFields, lazy=False)
 
-class Body2d(Body2dView):
+class Body2d(LazyBody2dView):
     """One or more rigid bodies"""
 
-    def __init__(self, world, id, mass=None, inertia=None):        
+    def __init__(self, world, id):        
+        super(Body2d, self).__init__(world.bodies, id)
         self.id = id
-        super(Body2d, self).__init__(world.bodies, self.id)
         
-        if mass is not None:
-            self.inverse_mass = 1.0 / mass
-        if inertia is not None:
-            self.inverse_inertia = 1.0 / inertia
-        
+    @staticmethod
+    def create(world, id, **kwargs):
+        b = Body2d(world, id)
+        b.set(**kwargs)
+        return b
+
+    def set(self, mass=1, inertia=1, position=[0,0], orientation=0):
+        self.inverse_mass = 1.0 / mass
+        self.inverse_inertia = 1.0 / inertia
+        self.position = np.asarray(position)
+        self.orientation = orientation
+
     @property
     def mass(self):
         return float('inf') if self.inverse_mass == 0 else 1.0 / self.inverse_mass
