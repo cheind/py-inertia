@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-from inertia.physics.body2d import Body2d, Body2dFields
+from inertia.physics.body2d import Body2d, Body2dFields, Body2dView
 from inertia import transform as t
 
 class Items(object):
@@ -18,8 +18,11 @@ class Items(object):
 class World2d(object):
 
     def __init__(self, body_capacity=10):
-        self.bodies = np.zeros(body_capacity, [e.value for e in Body2dFields])
-        self.initialize_bodies(np.s_[:body_capacity])
+        self.bodies = np.zeros(0, [e.value for e in Body2dFields])
+        
+        self.body_capacity = 0        
+        self.resize_bodies(body_capacity)
+
         self.forces = Items()        
 
         self.body_count = 0
@@ -34,23 +37,26 @@ class World2d(object):
     def new_body(self, **kwargs):
         if self.body_count == self.body_capacity:
             new_capacity = (self.body_capacity + 1) * 2
-            self.bodies.resize(new_capacity, refcheck=False)
-            self.initialize_bodies(np.s_[-(new_capacity - self.body_capacity)])
-            self.body_capacity = new_capacity
-
-        b = Body2d(self, id=self.body_count, **kwargs)
+            self.resize_bodies(new_capacity)
+            
+        b = Body2d.create(self, self.body_count, **kwargs)
         self.body_count += 1
         return b
 
-    def initialize_bodies(self, slice):
+    def resize_bodies(self, new_capacity):        
+        self.bodies.resize(new_capacity, refcheck=False)
+
+        # Initialize new bodies
+        slice = np.s_[-(new_capacity - self.body_capacity)]
         b = Body2d(self, slice)
-        b.inverse_mass = 1.
-        b.inverse_inertia = 1.
+        b.set()
+
+        self.body_capacity = new_capacity
     
     def update(self, timestep):
         """Updates simulation by advancing `timestep` seconds in one sweep."""
 
-        b = self.bodies[:self.body_count].view(np.recarray)
+        b = Body2dView(self.bodies, np.s_[:self.body_count])
 
         # Clear accumulators
         b.linear_acceleration.fill(0.)
@@ -65,8 +71,8 @@ class World2d(object):
         b.linear_velocity += b.linear_acceleration * timestep
         b.angular_velocity += b.angular_acceleration * timestep
 
-        b.position = b.linear_velocity * timestep
-        b.orientation = b.angular_velocity * timestep
+        b.position += b.linear_velocity * timestep
+        b.orientation += b.angular_velocity * timestep
 
         self.time += timestep
 
